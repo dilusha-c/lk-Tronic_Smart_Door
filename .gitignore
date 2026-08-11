@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Packaged application output
+dist/
+
+# User-uploaded and runtime-generated data
+uploads/
+playlist_cache.json
+welcome_settings.json
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Operating-system and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

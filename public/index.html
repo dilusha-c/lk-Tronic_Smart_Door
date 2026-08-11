@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lk-Tronics Music player</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="glass-bg"></div>
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-logo">
+        <i data-lucide="door-open" class="pulse-icon"></i>
+        <h1><span class="logo-brand">Lk-Tronics</span><span class="logo-suffix"> Music player</span></h1>
+      </div>
+      <div class="header-status">
+        <div class="status-indicator" id="door-status-badge">
+          <i data-lucide="door-closed"></i>
+          <span>Door: Idle</span>
+        </div>
+        <div class="status-indicator" id="esp-status-badge">
+          <i data-lucide="wifi-off"></i>
+          <span>ESP32: Offline</span>
+        </div>
+        <button class="btn-sim btn-sim-open header-door-trigger" id="sim-open-btn" title="Trigger Door Open">
+          <i data-lucide="door-open"></i> Trigger Door Open
+        </button>
+        <div class="system-time" id="current-time">00:00:00</div>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="dashboard-grid">
+      
+      <!-- Left Column: Player & Welcome Sounds -->
+      <section class="grid-col left-col">
+        
+        <!-- Target container for YouTube IFrame Player API -->
+        <div id="yt-player" style="position: absolute; top: -9999px; left: -9999px; width: 1px; height: 1px; visibility: hidden;"></div>
+
+
+        <!-- Premium Music Player Panel -->
+        <div class="glass-panel player-panel">
+          <div class="player-header">
+            <span class="panel-label">Now Playing</span>
+            <div class="music-note-icon">
+              <i data-lucide="music"></i>
+            </div>
+          </div>
+          
+          <div class="album-art-area">
+            <div class="album-art-placeholder" id="album-art">
+              <div class="vinyl-record" id="vinyl"></div>
+              <i data-lucide="disc" class="vinyl-icon"></i>
+            </div>
+            <div class="song-info">
+              <h2 id="current-song-title">No track selected</h2>
+              <p id="current-song-meta">Upload music or select a song from the playlist</p>
+            </div>
+          </div>
+
+          <div class="player-controls-container">
+            <!-- Progress Bar -->
+            <div class="playback-bar-container">
+              <span class="time-stamp" id="current-time-display">0:00</span>
+              <input type="range" id="seek-bar" class="progress-bar" value="0" min="0" max="100">
+              <span class="time-stamp" id="total-duration-display">0:00</span>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="control-buttons">
+              <button class="btn-icon" id="btn-shuffle" title="Shuffle"><i data-lucide="shuffle"></i></button>
+              <button class="btn-icon" id="btn-prev" title="Previous"><i data-lucide="skip-back"></i></button>
+              <button class="btn-icon btn-play-pause" id="btn-play" title="Play/Pause"><i data-lucide="play"></i></button>
+              <button class="btn-icon" id="btn-next" title="Next"><i data-lucide="skip-forward"></i></button>
+              <button class="btn-icon" id="btn-repeat" title="Repeat"><i data-lucide="repeat"></i></button>
+            </div>
+
+            <!-- Volume & Extra Controls -->
+            <div class="player-footer">
+              <button class="btn-icon" id="btn-stop" title="Stop"><i data-lucide="square"></i></button>
+              <div class="volume-container">
+                <button class="btn-icon" id="btn-mute" title="Mute"><i data-lucide="volume-2"></i></button>
+                <input type="range" id="volume-slider" class="volume-slider" value="100" min="0" max="100">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Welcome Sound configuration -->
+        <div class="glass-panel welcome-panel">
+          <div class="panel-header">
+            <h3><i data-lucide="bell"></i> Welcome Sound Settings</h3>
+          </div>
+          
+          <div class="active-welcome-status">
+            <span>Active Sound:</span>
+            <strong id="active-welcome-name">None Selected</strong>
+          </div>
+
+          <div class="welcome-delay-setting">
+            <label for="welcome-delay-input">Play again after (seconds)</label>
+            <input type="number" id="welcome-delay-input" min="0" max="3600" step="1" value="90" class="search-input">
+            <button type="button" id="btn-set-welcome-delay" class="btn-primary btn-set-welcome-delay">Set Delay</button>
+          </div>
+
+          <div class="welcome-upload-section">
+            <label for="welcome-file-input" class="welcome-upload-label">
+              <i data-lucide="upload-cloud"></i> Upload New Welcome MP3
+            </label>
+            <input type="file" id="welcome-file-input" accept="audio/*" style="display: none;">
+          </div>
+
+          <div class="welcome-list-container">
+            <ul class="welcome-list" id="welcome-list-ul">
+              <!-- Dynamically populated welcome sounds -->
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Playlist, Upload, Event Log & Simulator -->
+      <section class="grid-col right-col">
+        
+        <!-- YouTube Playlist panel -->
+        <div class="glass-panel playlist-panel">
+          <div class="panel-header">
+            <div class="header-left">
+              <h3><i data-lucide="youtube"></i> YouTube Playlist</h3>
+              <span class="badge" id="song-count-badge">0 Videos</span>
+            </div>
+            <div class="playlist-actions">
+              <input type="text" id="playlist-search" placeholder="Search videos..." class="search-input">
+              <button class="btn-icon" id="btn-refresh" title="Reload Playlist"><i data-lucide="refresh-cw"></i></button>
+            </div>
+          </div>
+
+          <!-- YouTube Input Section -->
+          <div class="yt-input-zone" style="margin-bottom: 16px;">
+            <div class="yt-input-group" style="display: flex; gap: 8px;">
+              <input type="text" id="yt-playlist-input" placeholder="Paste YouTube Playlist URL or ID..." class="search-input" style="flex: 1; padding: 10px 14px;">
+              <button class="btn-primary" id="btn-load-yt" style="display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="play-circle"></i> Load
+              </button>
+            </div>
+          </div>
+
+          <!-- YouTube Playlist Details Card -->
+          <div class="yt-playlist-details-card" style="display: flex; gap: 16px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+            <img id="yt-playlist-thumb" src="https://via.placeholder.com/120x90?text=No+Playlist" alt="Playlist Thumbnail" style="width: 120px; height: 90px; border-radius: 8px; object-fit: cover; border: 1px solid var(--glass-border);">
+            <div style="display: flex; flex-direction: column; justify-content: center; gap: 4px; overflow: hidden; flex: 1;">
+              <span class="panel-label">Playlist Details</span>
+              <strong id="yt-playlist-title" style="font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary);">No Playlist Loaded</strong>
+              <div style="display: flex; gap: 12px; font-size: 13px; color: var(--text-secondary);">
+                <span id="yt-playlist-count">0 Videos</span>
+                <span id="yt-playlist-status" style="color: var(--success-color);">Idle</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Saved Playlists List -->
+          <div class="saved-playlists-section" style="margin-bottom: 16px;">
+            <span class="panel-label" style="display: block; margin-bottom: 8px;">Saved Playlists</span>
+            <div class="welcome-list-container" style="max-height: 120px; overflow-y: auto; border: 1px solid var(--glass-border); border-radius: 8px; padding: 4px;">
+              <ul class="welcome-list" id="saved-playlists-list-ul">
+                <!-- Dynamically populated saved playlists -->
+              </ul>
+            </div>
+          </div>
+
+          <!-- Playlist Items -->
+          <div class="playlist-table-container">
+            <table class="playlist-table">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">#</th>
+                  <th>Title</th>
+                  <th style="width: 80px; text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="playlist-tbody">
+                <!-- Dynamically populated playlist rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Real-Time Event Log -->
+        <div class="row-flex">
+          <div class="glass-panel log-panel">
+            <div class="panel-header">
+              <h3><i data-lucide="terminal"></i> Live Event Log</h3>
+              <button class="btn-text-clear" id="btn-clear-logs">Clear</button>
+            </div>
+            <div class="log-content" id="log-list">
+              <!-- Logs dynamic insert -->
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Rename Modal -->
+  <div class="modal" id="rename-modal">
+    <div class="modal-content glass-panel">
+      <h3>Rename Song</h3>
+      <input type="text" id="rename-input" class="modal-input">
+      <div class="modal-buttons">
+        <button class="btn-secondary" id="modal-cancel-btn">Cancel</button>
+        <button class="btn-primary" id="modal-save-btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Socket.IO library -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Main Script -->
+  <script src="script.js"></script>
+</body>
+</html>
