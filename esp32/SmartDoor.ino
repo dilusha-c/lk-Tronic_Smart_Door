@@ -4,7 +4,7 @@
 #include <esp_wifi.h>
 
 const char* ssid = "LK TRONICS-2.4G";
-const char* password = "lktronics@2025";
+const char* password = "*********";
 
 const char* serverUrl = "http://192.168.1.82:3034/door-event";
 
