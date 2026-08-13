@@ -37,11 +37,30 @@ function createWindow() {
     serverPromise = require('./server.js');
   }
 
+  // Avoid presenting a blank window while Windows releases port 3034 during
+  // startup. The server will replace this page as soon as it is ready.
+  mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`
+    <main style="font-family:system-ui,sans-serif;display:grid;place-items:center;height:100vh;margin:0;color:#222">
+      <section style="text-align:center">
+        <h1>Starting Lk-Tronics Music Player</h1>
+        <p>Waiting for the local service on port 3034…</p>
+      </section>
+    </main>
+  `));
+
   // Load the running Express application
   serverPromise.then((port) => {
     mainWindow.loadURL(`http://localhost:${port}`);
   }).catch((err) => {
     console.error("Failed to start backend server:", err);
+    mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`
+      <main style="font-family:system-ui,sans-serif;display:grid;place-items:center;height:100vh;margin:0;color:#222">
+        <section style="text-align:center">
+          <h1>Unable to start Lk-Tronics Music Player</h1>
+          <p>The local service could not start on port 3034.</p>
+        </section>
+      </main>
+    `));
   });
 
   // Open the DevTools (optional, uncomment for debugging)

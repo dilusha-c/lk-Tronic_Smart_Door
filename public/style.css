@@ -126,6 +126,10 @@ body {
   white-space: nowrap;
 }
 
+.system-details-button {
+  flex: none;
+}
+
 .status-indicator {
   display: flex;
   align-items: center;
@@ -916,6 +920,63 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.system-details-content {
+  max-width: 560px;
+}
+
+.system-details-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.system-details-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.system-details-heading h3 i {
+  color: var(--primary-color);
+}
+
+.system-details-list {
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.system-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 14px;
+}
+
+.system-detail-row:last-child {
+  border-bottom: 0;
+}
+
+.system-detail-row span {
+  color: var(--text-secondary);
+}
+
+.system-detail-row strong {
+  color: var(--text-primary);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.system-details-help {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .modal-input {

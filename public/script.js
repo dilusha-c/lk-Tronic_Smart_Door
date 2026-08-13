@@ -24,6 +24,9 @@ let pendingPlaylistLoad = null;
 let welcomeRecoveryTimer = null;
 let welcomeCooldownUntil = 0;
 let welcomeDelaySeconds = 90;
+let esp32IsConnected = false;
+let currentDoorState = 'idle';
+const appStartedAt = new Date();
 
 // Audio elements
 const welcomeAudio = new Audio();
@@ -75,6 +78,15 @@ const btnRefresh = document.getElementById('btn-refresh');
 const logList = document.getElementById('log-list');
 const btnClearLogs = document.getElementById('btn-clear-logs');
 const simOpenBtn = document.getElementById('sim-open-btn');
+const systemDetailsBtn = document.getElementById('system-details-btn');
+const systemDetailsModal = document.getElementById('system-details-modal');
+const systemDetailsCloseBtn = document.getElementById('system-details-close-btn');
+const detailServiceStatus = document.getElementById('detail-service-status');
+const detailServerPort = document.getElementById('detail-server-port');
+const detailApiEndpoint = document.getElementById('detail-api-endpoint');
+const detailEspStatus = document.getElementById('detail-esp-status');
+const detailDoorStatus = document.getElementById('detail-door-status');
+const detailStartedAt = document.getElementById('detail-started-at');
 
 // Initialize Lucide Icons
 function refreshIcons() {
@@ -82,6 +94,40 @@ function refreshIcons() {
     lucide.createIcons();
   }
 }
+
+function updateSystemDetails() {
+  const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+  detailServerPort.textContent = port;
+  detailApiEndpoint.textContent = `${window.location.origin}/door-event`;
+  detailEspStatus.textContent = esp32IsConnected ? 'Online' : 'Offline';
+  detailDoorStatus.textContent = currentDoorState === 'open' ? 'Open' : 'Idle';
+  detailStartedAt.textContent = appStartedAt.toLocaleString();
+}
+
+async function openSystemDetails() {
+  updateSystemDetails();
+  detailServiceStatus.textContent = 'Checking…';
+  systemDetailsModal.classList.add('show');
+  refreshIcons();
+
+  try {
+    const response = await fetch('/status', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Status request failed');
+    detailServiceStatus.textContent = 'Online';
+  } catch {
+    detailServiceStatus.textContent = 'Unavailable';
+  }
+}
+
+function closeSystemDetails() {
+  systemDetailsModal.classList.remove('show');
+}
+
+systemDetailsBtn.addEventListener('click', openSystemDetails);
+systemDetailsCloseBtn.addEventListener('click', closeSystemDetails);
+systemDetailsModal.addEventListener('click', (event) => {
+  if (event.target === systemDetailsModal) closeSystemDetails();
+});
 
 // -------------------------------------------------------------
 // YouTube IFrame Player API Implementation
@@ -140,6 +186,9 @@ function onPlayerStateChange(event) {
     btnPlay.innerHTML = '<i data-lucide="play"></i>';
     vinylRecord.classList.remove('spinning');
   }
+  // Persist immediately when playback changes, instead of waiting for the
+  // periodic save. This preserves the last selected video when the app closes.
+  savePlaybackState();
   refreshIcons();
   updateStatusDashboard();
 }
@@ -858,6 +907,16 @@ socket.on('esp32_status', (data) => {
   updateEspUI(data.connected);
 });
 
+socket.on('connect', () => {
+  if (systemDetailsModal.classList.contains('show')) openSystemDetails();
+});
+
+socket.on('disconnect', () => {
+  if (systemDetailsModal.classList.contains('show')) {
+    detailServiceStatus.textContent = 'Unavailable';
+  }
+});
+
 socket.on('event_logged', (data) => {
   addLogEntry(data.message, data.time);
 });
@@ -870,10 +929,12 @@ socket.on('door_event', (data) => {
 });
 
 function updateDoorStatus(status) {
+  currentDoorState = status;
   if (status === 'open') {
     doorStatusBadge.className = 'status-indicator status-open';
     doorStatusBadge.innerHTML = '<i data-lucide="door-open"></i> <span>Door: Opened!</span>';
     setTimeout(() => {
+      currentDoorState = 'idle';
       doorStatusBadge.className = 'status-indicator';
       doorStatusBadge.innerHTML = '<i data-lucide="door-closed"></i> <span>Door: Idle</span>';
       refreshIcons();
@@ -888,6 +949,7 @@ function updateDoorStatus(status) {
 }
 
 function updateEspUI(connected) {
+  esp32IsConnected = connected;
   if (connected) {
     espStatusBadge.className = 'status-indicator status-online';
     espStatusBadge.innerHTML = '<i data-lucide="wifi"></i> <span>ESP32: Online</span>';
@@ -965,7 +1027,7 @@ async function loadLogs() {
 
 let lastSavedState = { index: -1, time: -1 };
 
-async function savePlaybackState() {
+async function savePlaybackState(options = {}) {
   const state = { volume: savedVolume };
   if (currentPlaylistId) {
     state.playlistId = currentPlaylistId;
@@ -980,7 +1042,8 @@ async function savePlaybackState() {
     await fetch('/api/youtube/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(state)
+      body: JSON.stringify(state),
+      keepalive: Boolean(options.keepalive)
     });
   } catch (e) {
     console.error("Failed to save playback state:", e);
@@ -1001,6 +1064,18 @@ setInterval(async () => {
     }
   }
 }, 2000);
+
+// Browsers and Electron can close before the next two-second periodic save.
+// keepalive lets this final request continue while the window is closing.
+window.addEventListener('pagehide', () => {
+  savePlaybackState({ keepalive: true });
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    savePlaybackState({ keepalive: true });
+  }
+});
 
 // Load initialization parameters
 loadWelcomeDelaySetting();

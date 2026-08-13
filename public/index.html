@@ -34,6 +34,9 @@
           <i data-lucide="door-open"></i> Trigger Door Open
         </button>
         <div class="system-time" id="current-time">00:00:00</div>
+        <button class="btn-icon system-details-button" id="system-details-btn" title="System details" aria-label="Show system details">
+          <i data-lucide="circle-info"></i>
+        </button>
       </div>
     </header>
 
@@ -220,6 +223,28 @@
         <button class="btn-secondary" id="modal-cancel-btn">Cancel</button>
         <button class="btn-primary" id="modal-save-btn">Save</button>
       </div>
+    </div>
+  </div>
+
+  <!-- System Details Modal -->
+  <div class="modal" id="system-details-modal" role="dialog" aria-modal="true" aria-labelledby="system-details-title">
+    <div class="modal-content glass-panel system-details-content">
+      <div class="system-details-heading">
+        <div>
+          <span class="panel-label">Connection information</span>
+          <h3 id="system-details-title"><i data-lucide="circle-info"></i> System Details</h3>
+        </div>
+        <button class="btn-icon" id="system-details-close-btn" title="Close details" aria-label="Close system details"><i data-lucide="x"></i></button>
+      </div>
+      <div class="system-details-list">
+        <div class="system-detail-row"><span>Local service</span><strong id="detail-service-status">Checking…</strong></div>
+        <div class="system-detail-row"><span>Server port</span><strong id="detail-server-port">3034</strong></div>
+        <div class="system-detail-row"><span>API endpoint</span><strong id="detail-api-endpoint">—</strong></div>
+        <div class="system-detail-row"><span>ESP32 connection</span><strong id="detail-esp-status">Checking…</strong></div>
+        <div class="system-detail-row"><span>Door status</span><strong id="detail-door-status">Idle</strong></div>
+        <div class="system-detail-row"><span>Started</span><strong id="detail-started-at">—</strong></div>
+      </div>
+      <p class="system-details-help">The ESP32 must use this computer's LAN IP address and the port shown above. If it is offline, check Wi-Fi and the ESP32 power.</p>
     </div>
   </div>
 

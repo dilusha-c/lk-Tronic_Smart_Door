@@ -58,6 +58,27 @@ app.use('/uploads/welcome', express.static(WELCOME_DIR));
 let eventsLog = [];
 let doorStatus = 'closed'; // 'open' or 'closed'
 let esp32Connected = false;
+let lastEsp32ActivityAt = 0;
+const ESP32_ONLINE_TIMEOUT_MS = 45000;
+
+function setEsp32Connected(connected) {
+  if (esp32Connected === connected) return;
+
+  esp32Connected = connected;
+  logEvent(connected ? 'ESP32 Connected' : 'ESP32 Disconnected');
+  io.emit('esp32_status', { connected });
+}
+
+function markEsp32Active() {
+  lastEsp32ActivityAt = Date.now();
+  setEsp32Connected(true);
+}
+
+setInterval(() => {
+  if (esp32Connected && Date.now() - lastEsp32ActivityAt > ESP32_ONLINE_TIMEOUT_MS) {
+    setEsp32Connected(false);
+  }
+}, 5000).unref();
 
 // Keep the welcome-sound choice outside the packaged app, so it survives restarts
 // and application updates when running in Electron.
@@ -442,7 +463,11 @@ app.post('/api/youtube/state', (req, res) => {
 // POST to trigger door status change (both for physical ESP32 or simulated dashboard button)
 app.post('/door-event', (req, res) => {
   const { event, time, manual } = req.body;
-  if (event === 'door_open') {
+  if (event === 'heartbeat') {
+    markEsp32Active();
+    res.json({ success: true, esp32Connected: true });
+  } else if (event === 'door_open') {
+    markEsp32Active();
     doorStatus = 'open';
     logEvent('Door Open');
     io.emit('door_event', {
@@ -452,6 +477,7 @@ app.post('/door-event', (req, res) => {
     });
     res.json({ success: true, doorStatus });
   } else if (event === 'door_closed') {
+    markEsp32Active();
     doorStatus = 'closed';
     logEvent('Door Closed');
     io.emit('door_event', { event: 'door_closed', time: time || new Date().toISOString() });
@@ -466,9 +492,7 @@ io.on('connection', (socket) => {
   // Check if client is ESP32 or browser
   const isEsp32 = socket.handshake.query.device === 'esp32';
   if (isEsp32) {
-    esp32Connected = true;
-    logEvent('ESP32 Connected');
-    io.emit('esp32_status', { connected: true });
+    markEsp32Active();
   }
 
   // Send current status immediately to new browser connection
@@ -481,6 +505,7 @@ io.on('connection', (socket) => {
   socket.on('esp32_event', (data) => {
     const { event, time } = data;
     if (event === 'door_open') {
+      markEsp32Active();
       doorStatus = 'open';
       logEvent('Door Open (ESP32)');
       io.emit('door_event', { event: 'door_open', time });
@@ -489,29 +514,44 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     if (isEsp32) {
-      esp32Connected = false;
-      logEvent('ESP32 Disconnected');
-      io.emit('esp32_status', { connected: false });
+      lastEsp32ActivityAt = 0;
+      setEsp32Connected(false);
     }
   });
 });
 
-// Start server dynamically finding an available port if the configured one is in use
+// The ESP32 is configured with this port, so never silently change it. During
+// Windows startup another process can briefly hold the port; wait for it to be
+// released and then start on the configured port.
+const PORT_RETRY_DELAY_MS = 1000;
+
 const startServer = (port) => {
   return new Promise((resolve, reject) => {
-    const srv = server.listen(port, () => {
-      console.log(`Server running on port ${port}`);
-      resolve(port);
-    });
-    
-    srv.on('error', (err) => {
-      if (err.code === 'EADDRINUSE') {
-        console.log(`Port ${port} is busy, trying port ${port + 1}...`);
-        resolve(startServer(port + 1));
-      } else {
+    const tryListen = () => {
+      const onListening = () => {
+        server.removeListener('error', onError);
+        console.log(`Server running on port ${port}`);
+        resolve(port);
+      };
+
+      const onError = (err) => {
+        server.removeListener('listening', onListening);
+
+        if (err.code === 'EADDRINUSE') {
+          console.log(`Port ${port} is busy; waiting before trying again...`);
+          setTimeout(tryListen, PORT_RETRY_DELAY_MS);
+          return;
+        }
+
         reject(err);
-      }
-    });
+      };
+
+      server.once('listening', onListening);
+      server.once('error', onError);
+      server.listen(port);
+    };
+
+    tryListen();
   });
 };
 
